@@ -155,15 +155,15 @@ function renderDiff(dateStr, todayWeight) {
   const prev = bodyRecords.filter(r => r.date < dateStr && r.weight).slice(-1)[0];
   if (!prev) { el.textContent = '初回記録 🎉'; el.className = 'diff-display diff-same'; return; }
 
-  const diff = Math.round((todayWeight - prev.weight) * 10) / 10;
+  const diff = Math.round((todayWeight - prev.weight) * 100) / 100;
   if (diff === 0) {
     el.textContent = '前回比 ± 0 kg';
     el.className = 'diff-display diff-same';
   } else if (diff < 0) {
-    el.textContent = `前回比 ▼ ${Math.abs(diff)} kg`;
+    el.textContent = `前回比 ▼ ${Math.abs(diff).toFixed(2)} kg`;
     el.className = 'diff-display diff-down';
   } else {
-    el.textContent = `前回比 ▲ +${diff} kg`;
+    el.textContent = `前回比 ▲ +${diff.toFixed(2)} kg`;
     el.className = 'diff-display diff-up';
   }
 }
@@ -177,11 +177,11 @@ function renderGoalProgress(weight) {
   const total = Math.abs(startWeight - goal);
   const done  = Math.abs(weight - goal);
   const pct   = total > 0 ? Math.max(0, Math.min(100, Math.round((1 - done / total) * 100))) : 100;
-  const remain = Math.round((weight - goal) * 10) / 10;
+  const remain = Math.round((weight - goal) * 100) / 100;
 
   wrap.classList.remove('hidden');
   document.getElementById('goal-remain').textContent =
-    remain === 0 ? '目標達成！🎉' : `あと ${Math.abs(remain)} kg`;
+    remain === 0 ? '目標達成！🎉' : `あと ${Math.abs(remain).toFixed(2)} kg`;
   document.getElementById('goal-bar-fill').style.width = `${pct}%`;
 }
 
@@ -476,7 +476,7 @@ function renderHistory() {
       <div class="history-date">${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${days[d.getDay()]}）</div>
       ${body ? `
         <div class="history-body-row">
-          <span class="history-weight">${body.weight} kg</span>
+          <span class="history-weight">${Number(body.weight).toFixed(2)} kg</span>
           ${body.bmi       ? `<span class="history-meta">BMI ${body.bmi}</span>` : ''}
           ${body.body_fat  ? `<span class="history-meta">体脂肪 ${body.body_fat}%</span>` : ''}
         </div>` : '<div style="font-size:13px;color:var(--text-muted)">体重未記録</div>'}
