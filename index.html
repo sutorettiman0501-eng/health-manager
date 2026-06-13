@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Health Manager</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <header>
+    <div class="header-inner">
+      <div class="header-left">
+        <h1>HEALTH</h1>
+        <div class="streak-badge" id="streak-badge">今日から記録しよう</div>
+      </div>
+      <button id="settings-btn" class="settings-btn" aria-label="設定">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- メインコンテンツ -->
+  <main>
+
+    <!-- 今日ビュー -->
+    <div id="today-view" class="view active">
+
+      <!-- 日付ナビ -->
+      <div class="date-nav">
+        <button id="prev-day" class="arrow-btn">&#8249;</button>
+        <span id="today-label"></span>
+        <button id="next-day" class="arrow-btn">&#8250;</button>
+      </div>
+
+      <!-- ヒーローカード（体重・BMI） -->
+      <div class="hero-card">
+        <div class="hero-deco-1"></div>
+        <div class="hero-deco-2"></div>
+
+        <div class="hero-top">
+          <span class="hero-card-title">今日の体重</span>
+          <div class="diff-display" id="diff-display"></div>
+        </div>
+
+        <div class="hero-weight-row">
+          <button class="weight-adj" id="weight-minus">−</button>
+          <div class="hero-weight-wrap">
+            <input type="number" id="weight-input" step="0.1" placeholder="--" inputmode="decimal">
+            <span class="hero-weight-unit">kg</span>
+          </div>
+          <button class="weight-adj" id="weight-plus">＋</button>
+        </div>
+
+        <div class="hero-metrics">
+          <div class="hero-metric">
+            <div class="hero-metric-label">BMI</div>
+            <div class="hero-metric-value" id="bmi-value">--</div>
+            <div class="metric-badge" id="bmi-badge"></div>
+          </div>
+          <div class="hero-metric-divider"></div>
+          <div class="hero-metric">
+            <div class="hero-metric-label">体脂肪率</div>
+            <div class="hero-bf-wrap">
+              <input type="number" id="bf-input" step="0.1" placeholder="--" inputmode="decimal">
+              <span class="hero-bf-unit">%</span>
+            </div>
+            <div class="metric-badge" id="bf-badge"></div>
+          </div>
+        </div>
+
+        <div id="goal-progress-wrap" class="hidden">
+          <div class="goal-label-row">
+            <span class="goal-label-text">目標まで</span>
+            <span class="goal-remain" id="goal-remain"></span>
+          </div>
+          <div class="goal-bar"><div class="goal-bar-fill" id="goal-bar-fill"></div></div>
+        </div>
+
+        <button class="hero-save-btn" id="save-body-btn">保存する</button>
+      </div>
+
+      <!-- 運動カード -->
+      <div class="card exercise-card">
+        <div class="card-header-row">
+          <div class="card-section-title">
+            <span class="section-icon">🏃</span>
+            運動記録
+          </div>
+          <div class="calorie-badge" id="calorie-total">0 kcal</div>
+        </div>
+        <div id="exercise-list" class="exercise-list"></div>
+        <button class="btn-add-exercise" id="add-exercise-btn">＋ 運動を追加</button>
+      </div>
+
+    </div><!-- /today-view -->
+
+    <!-- グラフビュー -->
+    <div id="graph-view" class="view">
+      <div class="graph-controls">
+        <div class="tab-group">
+          <button class="tab active" data-metric="weight">体重</button>
+          <button class="tab" data-metric="bf">体脂肪</button>
+          <button class="tab" data-metric="cal">カロリー</button>
+        </div>
+        <div class="tab-group period-group">
+          <button class="tab active" data-days="7">7日</button>
+          <button class="tab" data-days="30">30日</button>
+          <button class="tab" data-days="90">90日</button>
+        </div>
+      </div>
+      <div class="chart-card">
+        <canvas id="main-chart"></canvas>
+      </div>
+      <div id="graph-summary" class="graph-summary"></div>
+    </div>
+
+    <!-- 記録ビュー -->
+    <div id="history-view" class="view">
+      <div id="history-list" class="history-list"></div>
+    </div>
+
+  </main>
+
+  <!-- ボトムナビゲーション -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="today">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      <span>今日</span>
+    </button>
+    <button class="nav-btn" data-view="graph">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      <span>グラフ</span>
+    </button>
+    <button class="nav-btn" data-view="history">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+      </svg>
+      <span>記録</span>
+    </button>
+  </nav>
+
+  <!-- 設定モーダル -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-sheet">
+      <div class="sheet-handle"></div>
+      <h2>プロフィール設定</h2>
+      <p class="modal-hint">BMI・体脂肪率の自動計算に使用します</p>
+      <div class="form-group">
+        <label>身長 (cm)</label>
+        <input type="number" id="s-height" placeholder="例：170" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label>年齢</label>
+        <input type="number" id="s-age" placeholder="例：30" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label>性別</label>
+        <div class="toggle-group">
+          <button class="toggle-btn active" data-gender="male">男性</button>
+          <button class="toggle-btn" data-gender="female">女性</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>目標体重 (kg)</label>
+        <input type="number" id="s-goal" step="0.1" placeholder="例：65" inputmode="decimal">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="cancel-settings">キャンセル</button>
+        <button class="btn-primary" id="save-settings">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 運動追加モーダル -->
+  <div id="exercise-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-sheet">
+      <div class="sheet-handle"></div>
+      <h2>運動を追加</h2>
+      <div class="form-group">
+        <label>種目</label>
+        <select id="ex-type"></select>
+      </div>
+      <div class="form-group">
+        <label>時間 (分)</label>
+        <input type="number" id="ex-duration" placeholder="例：30" min="1" inputmode="numeric">
+      </div>
+      <div class="calorie-preview-box">
+        <span class="calorie-preview-label">消費カロリー（自動計算）</span>
+        <span class="calorie-preview-value" id="calorie-preview">-- kcal</span>
+      </div>
+      <div class="form-group">
+        <label>メモ（任意）</label>
+        <input type="text" id="ex-notes" placeholder="例：公園を2周した" autocomplete="off">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="cancel-exercise">キャンセル</button>
+        <button class="btn-primary" id="save-exercise">追加</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="app.js"></script>
+</body>
+</html>
