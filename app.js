@@ -6,7 +6,7 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ===== 運動種目（MET値） =====
 const EXERCISE_TYPES = [
-  { id: 'walk',       name: 'ウォーキング', icon: '🚶', met: 3.5 },
+  { id: 'walk',       name: 'ウォーキング', icon: '🚶', met: 3.5, defaultRtype: 'steps' },
   { id: 'jog',        name: 'ジョギング',   icon: '🏃', met: 7.0 },
   { id: 'run',        name: 'ランニング',   icon: '🏃', met: 10.0 },
   { id: 'bike',       name: '自転車',       icon: '🚴', met: 6.0 },
@@ -92,15 +92,13 @@ function calcBF(bmi) {
   return Math.max(0, Math.round(bf * 10) / 10);
 }
 
-function calcCalories(exTypeId, durationMin, sets, reps) {
+function calcCalories(exTypeId, durationMin, sets, reps, steps) {
   const ex = EXERCISE_TYPES.find(e => e.id === exTypeId);
   if (!ex) return 0;
   const latestRecord = bodyRecords.filter(r => r.weight).slice(-1)[0];
   const weight = latestRecord?.weight || settings.goal_weight || 65;
-  if (sets) {
-    const estDuration = sets * 1.5;
-    return Math.round(ex.met * weight * (estDuration / 60));
-  }
+  if (steps) return Math.round(steps * 0.04 * (weight / 70));
+  if (sets)  return Math.round(ex.met * weight * (sets * 1.5 / 60));
   if (!durationMin) return 0;
   return Math.round(ex.met * weight * (durationMin / 60));
 }
@@ -207,6 +205,8 @@ function renderExerciseList(exs) {
     const type = EXERCISE_TYPES.find(t => t.id === ex.exercise_type) || { icon: '⭐' };
     const detail = ex.record_type === 'reps'
       ? `${ex.sets}セット${ex.reps ? ' × ' + ex.reps + '回' : ''}${ex.notes ? ' · ' + escapeHtml(ex.notes) : ''}`
+      : ex.record_type === 'steps'
+      ? `${ex.steps.toLocaleString()}歩${ex.notes ? ' · ' + escapeHtml(ex.notes) : ''}`
       : `${ex.duration_min}分${ex.notes ? ' · ' + escapeHtml(ex.notes) : ''}`;
     const item = document.createElement('div');
     item.className = 'exercise-item';
@@ -274,6 +274,7 @@ function openExerciseModal(exercise = null) {
     document.getElementById('ex-duration').value = exercise.duration_min || '';
     document.getElementById('ex-sets').value = exercise.sets || '';
     document.getElementById('ex-reps').value = exercise.reps || '';
+    document.getElementById('ex-steps').value = exercise.steps || '';
     document.getElementById('ex-notes').value = exercise.notes || '';
     document.querySelector('#exercise-modal h2').textContent = '運動を編集';
     document.getElementById('save-exercise').textContent = '保存';
@@ -283,6 +284,7 @@ function openExerciseModal(exercise = null) {
     document.getElementById('ex-duration').value = '';
     document.getElementById('ex-sets').value = '';
     document.getElementById('ex-reps').value = '';
+    document.getElementById('ex-steps').value = '';
     document.getElementById('ex-notes').value = '';
     document.querySelector('#exercise-modal h2').textContent = '運動を追加';
     document.getElementById('save-exercise').textContent = '追加';
@@ -297,16 +299,21 @@ function updateRecordTypeUI() {
     b.classList.toggle('active', b.dataset.rtype === currentRecordType));
   document.getElementById('time-section').classList.toggle('hidden', currentRecordType !== 'time');
   document.getElementById('reps-section').classList.toggle('hidden', currentRecordType !== 'reps');
+  document.getElementById('steps-section').classList.toggle('hidden', currentRecordType !== 'steps');
   updateCaloriePreview();
 }
 
 function updateCaloriePreview() {
   const type = document.getElementById('ex-type').value;
   if (currentRecordType === 'reps') {
-    const sets = parseInt(document.getElementById('ex-sets').value);
-    const reps = parseInt(document.getElementById('ex-reps').value);
+    const sets  = parseInt(document.getElementById('ex-sets').value);
+    const reps  = parseInt(document.getElementById('ex-reps').value);
     document.getElementById('calorie-preview').textContent =
       sets ? `${calcCalories(type, null, sets, reps)} kcal` : '-- kcal';
+  } else if (currentRecordType === 'steps') {
+    const steps = parseInt(document.getElementById('ex-steps').value);
+    document.getElementById('calorie-preview').textContent =
+      steps ? `${calcCalories(type, null, null, null, steps)} kcal` : '-- kcal';
   } else {
     const dur = parseInt(document.getElementById('ex-duration').value);
     document.getElementById('calorie-preview').textContent =
@@ -332,15 +339,26 @@ async function saveExercise() {
     if (!sets || sets < 1) { alert('セット数を入力してください'); return; }
     payload = {
       date: dateStr, exercise_type: type, exercise_name: info?.name || type,
-      duration_min: null, sets, reps, calories: calcCalories(type, null, sets, reps),
+      duration_min: null, sets, reps, steps: null,
+      calories: calcCalories(type, null, sets, reps),
       notes: notes || null, record_type: 'reps',
+    };
+  } else if (currentRecordType === 'steps') {
+    const steps = parseInt(document.getElementById('ex-steps').value);
+    if (!steps || steps < 1) { alert('歩数を入力してください'); return; }
+    payload = {
+      date: dateStr, exercise_type: type, exercise_name: info?.name || type,
+      duration_min: null, sets: null, reps: null, steps,
+      calories: calcCalories(type, null, null, null, steps),
+      notes: notes || null, record_type: 'steps',
     };
   } else {
     const dur = parseInt(document.getElementById('ex-duration').value);
     if (!dur || dur < 1) { alert('時間を入力してください'); return; }
     payload = {
       date: dateStr, exercise_type: type, exercise_name: info?.name || type,
-      duration_min: dur, sets: null, reps: null, calories: calcCalories(type, dur),
+      duration_min: dur, sets: null, reps: null, steps: null,
+      calories: calcCalories(type, dur),
       notes: notes || null, record_type: 'time',
     };
   }
@@ -554,6 +572,8 @@ function renderHistory() {
           const t = EXERCISE_TYPES.find(x => x.id === e.exercise_type);
           const detail = e.record_type === 'reps'
             ? `${e.sets}セット${e.reps ? '×' + e.reps + '回' : ''}`
+            : e.record_type === 'steps'
+            ? `${e.steps.toLocaleString()}歩`
             : `${e.duration_min}分`;
           return `${t?.icon || '⭐'} ${e.exercise_name} ${detail}`;
         }).join(' · ')}</div>
@@ -647,6 +667,7 @@ function setupEventListeners() {
   document.getElementById('ex-duration').addEventListener('input', updateCaloriePreview);
   document.getElementById('ex-sets').addEventListener('input', updateCaloriePreview);
   document.getElementById('ex-reps').addEventListener('input', updateCaloriePreview);
+  document.getElementById('ex-steps').addEventListener('input', updateCaloriePreview);
   document.querySelectorAll('[data-rtype]').forEach(btn =>
     btn.addEventListener('click', () => {
       currentRecordType = btn.dataset.rtype;
