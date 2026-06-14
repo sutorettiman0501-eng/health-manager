@@ -451,6 +451,21 @@ main { padding-bottom: calc(var(--nav-h) + 12px); }
 }
 .exercise-cal-unit { font-size: 10px; font-weight: 600; display: block; }
 
+.exercise-edit {
+  height: 32px;
+  padding: 0 10px;
+  background: var(--blue-bg);
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--blue);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .exercise-del {
   width: 32px;
   height: 32px;
@@ -465,6 +480,33 @@ main { padding-bottom: calc(var(--nav-h) + 12px); }
   justify-content: center;
   flex-shrink: 0;
 }
+
+.sets-reps-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.sets-reps-row label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.sets-reps-row input {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  font-size: 16px;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  -webkit-appearance: none;
+}
+.sets-reps-row input:focus { border-color: var(--green-dark); background: white; }
 
 .exercise-empty {
   text-align: center;

@@ -193,8 +193,27 @@
         <select id="ex-type"></select>
       </div>
       <div class="form-group">
+        <label>記録方法</label>
+        <div class="toggle-group">
+          <button class="toggle-btn active" data-rtype="time">時間</button>
+          <button class="toggle-btn" data-rtype="reps">セット数</button>
+        </div>
+      </div>
+      <div id="time-section" class="form-group">
         <label>時間 (分)</label>
         <input type="number" id="ex-duration" placeholder="例：30" min="1" inputmode="numeric">
+      </div>
+      <div id="reps-section" class="form-group hidden">
+        <div class="sets-reps-row">
+          <div>
+            <label>セット数</label>
+            <input type="number" id="ex-sets" placeholder="例：3" min="1" inputmode="numeric">
+          </div>
+          <div>
+            <label>回数 / セット</label>
+            <input type="number" id="ex-reps" placeholder="例：10" min="1" inputmode="numeric">
+          </div>
+        </div>
       </div>
       <div class="calorie-preview-box">
         <span class="calorie-preview-label">消費カロリー（自動計算）</span>

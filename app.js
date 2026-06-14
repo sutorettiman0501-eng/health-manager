@@ -11,7 +11,7 @@ const EXERCISE_TYPES = [
   { id: 'run',        name: 'ランニング',   icon: '🏃', met: 10.0 },
   { id: 'bike',       name: '自転車',       icon: '🚴', met: 6.0 },
   { id: 'swim',       name: '水泳',         icon: '🏊', met: 6.0 },
-  { id: 'strength',   name: '筋トレ',       icon: '💪', met: 5.0 },
+  { id: 'strength',   name: '筋トレ',       icon: '💪', met: 5.0, defaultRtype: 'reps' },
   { id: 'yoga',       name: 'ヨガ',         icon: '🧘', met: 2.5 },
   { id: 'stretch',    name: 'ストレッチ',   icon: '🤸', met: 2.0 },
   { id: 'aerobics',   name: 'エアロビクス', icon: '💃', met: 6.5 },
@@ -34,6 +34,8 @@ let currentMetric = 'weight';
 let currentPeriod = 7;
 let chartInstance = null;
 let selectedGender = 'male';
+let editingExerciseId = null;
+let currentRecordType = 'time';
 
 // ===== 初期化 =====
 async function init() {
@@ -90,11 +92,16 @@ function calcBF(bmi) {
   return Math.max(0, Math.round(bf * 10) / 10);
 }
 
-function calcCalories(exTypeId, durationMin) {
+function calcCalories(exTypeId, durationMin, sets, reps) {
   const ex = EXERCISE_TYPES.find(e => e.id === exTypeId);
-  if (!ex || !durationMin) return 0;
+  if (!ex) return 0;
   const latestRecord = bodyRecords.filter(r => r.weight).slice(-1)[0];
   const weight = latestRecord?.weight || settings.goal_weight || 65;
+  if (sets) {
+    const estDuration = sets * 1.5;
+    return Math.round(ex.met * weight * (estDuration / 60));
+  }
+  if (!durationMin) return 0;
   return Math.round(ex.met * weight * (durationMin / 60));
 }
 
@@ -198,15 +205,19 @@ function renderExerciseList(exs) {
   }
   exs.forEach(ex => {
     const type = EXERCISE_TYPES.find(t => t.id === ex.exercise_type) || { icon: '⭐' };
+    const detail = ex.record_type === 'reps'
+      ? `${ex.sets}セット${ex.reps ? ' × ' + ex.reps + '回' : ''}${ex.notes ? ' · ' + escapeHtml(ex.notes) : ''}`
+      : `${ex.duration_min}分${ex.notes ? ' · ' + escapeHtml(ex.notes) : ''}`;
     const item = document.createElement('div');
     item.className = 'exercise-item';
     item.innerHTML = `
       <span class="exercise-icon">${type.icon}</span>
       <div class="exercise-info">
         <div class="exercise-name">${escapeHtml(ex.exercise_name)}</div>
-        <div class="exercise-detail">${ex.duration_min}分${ex.notes ? ' · ' + escapeHtml(ex.notes) : ''}</div>
+        <div class="exercise-detail">${detail}</div>
       </div>
-      <span class="exercise-cal">${ex.calories} kcal</span>
+      <span class="exercise-cal">${ex.calories}<small class="exercise-cal-unit">kcal</small></span>
+      <button class="exercise-edit" onclick="editExercise('${ex.id}')">編集</button>
       <button class="exercise-del" onclick="deleteExercise('${ex.id}')">×</button>
     `;
     list.appendChild(item);
@@ -252,43 +263,101 @@ async function saveBodyRecord() {
 }
 
 // ===== 運動モーダル =====
-function openExerciseModal() {
+function openExerciseModal(exercise = null) {
+  editingExerciseId = exercise?.id || null;
   const sel = document.getElementById('ex-type');
   sel.innerHTML = EXERCISE_TYPES.map(t => `<option value="${t.id}">${t.icon} ${t.name}</option>`).join('');
-  document.getElementById('ex-duration').value = '';
-  document.getElementById('ex-notes').value = '';
-  document.getElementById('calorie-preview').textContent = '-- kcal';
+
+  if (exercise) {
+    sel.value = exercise.exercise_type;
+    currentRecordType = exercise.record_type || 'time';
+    document.getElementById('ex-duration').value = exercise.duration_min || '';
+    document.getElementById('ex-sets').value = exercise.sets || '';
+    document.getElementById('ex-reps').value = exercise.reps || '';
+    document.getElementById('ex-notes').value = exercise.notes || '';
+    document.querySelector('#exercise-modal h2').textContent = '運動を編集';
+    document.getElementById('save-exercise').textContent = '保存';
+  } else {
+    const exType = EXERCISE_TYPES.find(t => t.id === sel.value);
+    currentRecordType = exType?.defaultRtype || 'time';
+    document.getElementById('ex-duration').value = '';
+    document.getElementById('ex-sets').value = '';
+    document.getElementById('ex-reps').value = '';
+    document.getElementById('ex-notes').value = '';
+    document.querySelector('#exercise-modal h2').textContent = '運動を追加';
+    document.getElementById('save-exercise').textContent = '追加';
+  }
+
+  updateRecordTypeUI();
   document.getElementById('exercise-modal').classList.remove('hidden');
+}
+
+function updateRecordTypeUI() {
+  document.querySelectorAll('[data-rtype]').forEach(b =>
+    b.classList.toggle('active', b.dataset.rtype === currentRecordType));
+  document.getElementById('time-section').classList.toggle('hidden', currentRecordType !== 'time');
+  document.getElementById('reps-section').classList.toggle('hidden', currentRecordType !== 'reps');
+  updateCaloriePreview();
 }
 
 function updateCaloriePreview() {
   const type = document.getElementById('ex-type').value;
-  const dur  = parseInt(document.getElementById('ex-duration').value);
-  document.getElementById('calorie-preview').textContent =
-    dur ? `${calcCalories(type, dur)} kcal` : '-- kcal';
+  if (currentRecordType === 'reps') {
+    const sets = parseInt(document.getElementById('ex-sets').value);
+    const reps = parseInt(document.getElementById('ex-reps').value);
+    document.getElementById('calorie-preview').textContent =
+      sets ? `${calcCalories(type, null, sets, reps)} kcal` : '-- kcal';
+  } else {
+    const dur = parseInt(document.getElementById('ex-duration').value);
+    document.getElementById('calorie-preview').textContent =
+      dur ? `${calcCalories(type, dur)} kcal` : '-- kcal';
+  }
+}
+
+function editExercise(id) {
+  const ex = exerciseRecords.find(e => e.id === id);
+  if (ex) openExerciseModal(ex);
 }
 
 async function saveExercise() {
-  const type = document.getElementById('ex-type').value;
-  const dur  = parseInt(document.getElementById('ex-duration').value);
+  const type  = document.getElementById('ex-type').value;
   const notes = document.getElementById('ex-notes').value.trim();
-  if (!dur || dur < 1) { alert('時間を入力してください'); return; }
-
+  const info  = EXERCISE_TYPES.find(t => t.id === type);
   const dateStr = toDateStr(currentDate);
-  const cal  = calcCalories(type, dur);
-  const info = EXERCISE_TYPES.find(t => t.id === type);
-  const payload = {
-    date: dateStr,
-    exercise_type: type,
-    exercise_name: info?.name || type,
-    duration_min: dur,
-    calories: cal,
-    notes: notes || null,
-  };
+  let payload;
 
-  const { data, error } = await db.from('exercise_records').insert(payload).select().single();
-  if (error) { alert('追加に失敗しました: ' + error.message); return; }
-  exerciseRecords.push(data);
+  if (currentRecordType === 'reps') {
+    const sets = parseInt(document.getElementById('ex-sets').value);
+    const reps = parseInt(document.getElementById('ex-reps').value) || null;
+    if (!sets || sets < 1) { alert('セット数を入力してください'); return; }
+    payload = {
+      date: dateStr, exercise_type: type, exercise_name: info?.name || type,
+      duration_min: null, sets, reps, calories: calcCalories(type, null, sets, reps),
+      notes: notes || null, record_type: 'reps',
+    };
+  } else {
+    const dur = parseInt(document.getElementById('ex-duration').value);
+    if (!dur || dur < 1) { alert('時間を入力してください'); return; }
+    payload = {
+      date: dateStr, exercise_type: type, exercise_name: info?.name || type,
+      duration_min: dur, sets: null, reps: null, calories: calcCalories(type, dur),
+      notes: notes || null, record_type: 'time',
+    };
+  }
+
+  if (editingExerciseId) {
+    const { data, error } = await db.from('exercise_records')
+      .update({ ...payload, updated_at: new Date().toISOString() })
+      .eq('id', editingExerciseId).select().single();
+    if (error) { alert('更新に失敗しました: ' + error.message); return; }
+    const idx = exerciseRecords.findIndex(e => e.id === editingExerciseId);
+    if (idx > -1) exerciseRecords[idx] = data;
+  } else {
+    const { data, error } = await db.from('exercise_records').insert(payload).select().single();
+    if (error) { alert('追加に失敗しました: ' + error.message); return; }
+    exerciseRecords.push(data);
+  }
+
   document.getElementById('exercise-modal').classList.add('hidden');
   renderExerciseList(exerciseRecords.filter(e => e.date === dateStr));
 }
@@ -483,7 +552,10 @@ function renderHistory() {
       ${exs.length ? `
         <div class="history-exercises">${exs.map(e => {
           const t = EXERCISE_TYPES.find(x => x.id === e.exercise_type);
-          return `${t?.icon || '⭐'} ${e.exercise_name} ${e.duration_min}分`;
+          const detail = e.record_type === 'reps'
+            ? `${e.sets}セット${e.reps ? '×' + e.reps + '回' : ''}`
+            : `${e.duration_min}分`;
+          return `${t?.icon || '⭐'} ${e.exercise_name} ${detail}`;
         }).join(' · ')}</div>
         <div class="history-calories">消費 ${totalCal} kcal</div>
       ` : ''}
@@ -566,9 +638,20 @@ function setupEventListeners() {
   document.getElementById('save-body-btn').addEventListener('click', saveBodyRecord);
 
   // 運動
-  document.getElementById('add-exercise-btn').addEventListener('click', openExerciseModal);
-  document.getElementById('ex-type').addEventListener('change', updateCaloriePreview);
+  document.getElementById('add-exercise-btn').addEventListener('click', () => openExerciseModal());
+  document.getElementById('ex-type').addEventListener('change', () => {
+    const exType = EXERCISE_TYPES.find(t => t.id === document.getElementById('ex-type').value);
+    currentRecordType = exType?.defaultRtype || 'time';
+    updateRecordTypeUI();
+  });
   document.getElementById('ex-duration').addEventListener('input', updateCaloriePreview);
+  document.getElementById('ex-sets').addEventListener('input', updateCaloriePreview);
+  document.getElementById('ex-reps').addEventListener('input', updateCaloriePreview);
+  document.querySelectorAll('[data-rtype]').forEach(btn =>
+    btn.addEventListener('click', () => {
+      currentRecordType = btn.dataset.rtype;
+      updateRecordTypeUI();
+    }));
   document.getElementById('save-exercise').addEventListener('click', saveExercise);
   document.getElementById('cancel-exercise').addEventListener('click', () =>
     document.getElementById('exercise-modal').classList.add('hidden'));
