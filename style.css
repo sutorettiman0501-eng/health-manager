@@ -225,24 +225,24 @@ main { padding-bottom: calc(var(--nav-h) + 12px); }
 }
 
 #weight-input {
-  width: 148px;
+  width: 172px;
   background: none;
   border: none;
   border-bottom: 3px solid rgba(46,232,124,0.5);
-  font-size: 68px;
+  font-size: 52px;
   font-weight: 900;
   color: var(--green);
   text-align: center;
   outline: none;
   padding: 2px 0;
-  letter-spacing: -3px;
+  letter-spacing: -1px;
   line-height: 1;
   -webkit-text-fill-color: var(--green);
 }
 #weight-input::placeholder {
   color: rgba(46,232,124,0.3);
   -webkit-text-fill-color: rgba(46,232,124,0.3);
-  font-size: 56px;
+  font-size: 44px;
   font-weight: 300;
 }
 #weight-input:focus { border-bottom-color: var(--green); }
