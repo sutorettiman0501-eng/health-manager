@@ -442,7 +442,7 @@ function openSettings() {
   document.getElementById('s-age').value    = settings.age || '';
   document.getElementById('s-goal').value   = settings.goal_weight || '';
   selectedGender = settings.gender || 'male';
-  document.querySelectorAll('.toggle-btn').forEach(b =>
+  document.querySelectorAll('[data-gender]').forEach(b =>
     b.classList.toggle('active', b.dataset.gender === selectedGender));
   document.getElementById('settings-modal').classList.remove('hidden');
 }
@@ -747,10 +747,10 @@ function setupEventListeners() {
     if (e.target.classList.contains('modal') || e.target.classList.contains('modal-backdrop'))
       document.getElementById('settings-modal').classList.add('hidden');
   });
-  document.querySelectorAll('.toggle-btn').forEach(btn =>
+  document.querySelectorAll('[data-gender]').forEach(btn =>
     btn.addEventListener('click', () => {
       selectedGender = btn.dataset.gender;
-      document.querySelectorAll('.toggle-btn').forEach(b =>
+      document.querySelectorAll('[data-gender]').forEach(b =>
         b.classList.toggle('active', b.dataset.gender === selectedGender));
     }));
 
