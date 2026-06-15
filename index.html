@@ -220,6 +220,19 @@
         <label>歩数</label>
         <input type="number" id="ex-steps" placeholder="例：8000" min="1" inputmode="numeric">
       </div>
+      <div id="strength-extra" class="hidden">
+        <div class="form-group">
+          <label>種目</label>
+          <select id="ex-subtype"></select>
+        </div>
+        <div class="form-group">
+          <label>負荷タイプ</label>
+          <div class="toggle-group">
+            <button class="toggle-btn active" data-wtype="bodyweight">自重</button>
+            <button class="toggle-btn" data-wtype="weighted">重り</button>
+          </div>
+        </div>
+      </div>
       <div class="calorie-preview-box">
         <span class="calorie-preview-label">消費カロリー（自動計算）</span>
         <span class="calorie-preview-value" id="calorie-preview">-- kcal</span>

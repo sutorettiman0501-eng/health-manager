@@ -24,6 +24,24 @@ const EXERCISE_TYPES = [
   { id: 'other',      name: 'その他',       icon: '⭐', met: 4.0 },
 ];
 
+// ===== 筋トレ種目 =====
+const STRENGTH_EXERCISES = [
+  { id: 'squat',    name: 'スクワット',         met_bw: 4.0, met_w: 5.5 },
+  { id: 'pushup',   name: '腕立て伏せ',         met_bw: 3.8, met_w: 5.0 },
+  { id: 'pullup',   name: '懸垂',               met_bw: 4.0, met_w: 5.5 },
+  { id: 'lunge',    name: 'ランジ',             met_bw: 3.5, met_w: 5.0 },
+  { id: 'plank',    name: 'プランク',           met_bw: 3.0, met_w: 3.5 },
+  { id: 'crunch',   name: 'クランチ',           met_bw: 2.8, met_w: 3.5 },
+  { id: 'bench',    name: 'ベンチプレス',       met_bw: 4.0, met_w: 5.0 },
+  { id: 'deadlift', name: 'デッドリフト',       met_bw: 4.5, met_w: 6.0 },
+  { id: 'shoulder', name: 'ショルダープレス',   met_bw: 3.5, met_w: 5.0 },
+  { id: 'curl',     name: 'ダンベルカール',     met_bw: 2.5, met_w: 3.5 },
+  { id: 'lat',      name: 'ラットプルダウン',   met_bw: 4.0, met_w: 5.0 },
+  { id: 'row',      name: 'ベントオーバーロウ', met_bw: 4.0, met_w: 5.5 },
+  { id: 'legpress', name: 'レッグプレス',       met_bw: 4.0, met_w: 5.5 },
+  { id: 'other_s',  name: 'その他',             met_bw: 3.5, met_w: 5.0 },
+];
+
 // ===== 状態管理 =====
 let settings = { id: null, height: null, age: null, gender: 'male', goal_weight: null };
 let bodyRecords = [];
@@ -36,6 +54,7 @@ let chartInstance = null;
 let selectedGender = 'male';
 let editingExerciseId = null;
 let currentRecordType = 'time';
+let currentWeightType = 'bodyweight';
 
 // ===== 初期化 =====
 async function init() {
@@ -92,15 +111,22 @@ function calcBF(bmi) {
   return Math.max(0, Math.round(bf * 10) / 10);
 }
 
-function calcCalories(exTypeId, durationMin, sets, reps, steps) {
+function calcCalories(exTypeId, durationMin, sets, reps, steps, subtype, weightType) {
   const ex = EXERCISE_TYPES.find(e => e.id === exTypeId);
   if (!ex) return 0;
   const latestRecord = bodyRecords.filter(r => r.weight).slice(-1)[0];
-  const weight = latestRecord?.weight || settings.goal_weight || 65;
-  if (steps) return Math.round(steps * 0.04 * (weight / 70));
-  if (sets)  return Math.round(ex.met * weight * (sets * 1.5 / 60));
+  const w = latestRecord?.weight || settings.goal_weight || 65;
+  if (steps) return Math.round(steps * 0.04 * (w / 70));
+  if (sets) {
+    let met = ex.met;
+    if (exTypeId === 'strength' && subtype) {
+      const sub = STRENGTH_EXERCISES.find(s => s.id === subtype);
+      if (sub) met = weightType === 'weighted' ? sub.met_w : sub.met_bw;
+    }
+    return Math.round(met * w * (sets * 1.5 / 60));
+  }
   if (!durationMin) return 0;
-  return Math.round(ex.met * weight * (durationMin / 60));
+  return Math.round(ex.met * w * (durationMin / 60));
 }
 
 function getBMICategory(bmi) {
@@ -204,7 +230,7 @@ function renderExerciseList(exs) {
   exs.forEach(ex => {
     const type = EXERCISE_TYPES.find(t => t.id === ex.exercise_type) || { icon: '⭐' };
     const detail = ex.record_type === 'reps'
-      ? `${ex.sets}セット${ex.reps ? ' × ' + ex.reps + '回' : ''}${ex.notes ? ' · ' + escapeHtml(ex.notes) : ''}`
+      ? `${ex.sets}セット${ex.reps ? ' × ' + ex.reps + '回' : ''}${ex.weight_type ? ' · ' + (ex.weight_type === 'weighted' ? '重り' : '自重') : ''}${ex.notes ? ' · ' + escapeHtml(ex.notes) : ''}`
       : ex.record_type === 'steps'
       ? `${ex.steps.toLocaleString()}歩${ex.notes ? ' · ' + escapeHtml(ex.notes) : ''}`
       : `${ex.duration_min}分${ex.notes ? ' · ' + escapeHtml(ex.notes) : ''}`;
@@ -267,10 +293,12 @@ function openExerciseModal(exercise = null) {
   editingExerciseId = exercise?.id || null;
   const sel = document.getElementById('ex-type');
   sel.innerHTML = EXERCISE_TYPES.map(t => `<option value="${t.id}">${t.icon} ${t.name}</option>`).join('');
+  populateStrengthSubtype(exercise?.exercise_subtype || null);
 
   if (exercise) {
     sel.value = exercise.exercise_type;
     currentRecordType = exercise.record_type || 'time';
+    currentWeightType = exercise.weight_type || 'bodyweight';
     document.getElementById('ex-duration').value = exercise.duration_min || '';
     document.getElementById('ex-sets').value = exercise.sets || '';
     document.getElementById('ex-reps').value = exercise.reps || '';
@@ -281,6 +309,7 @@ function openExerciseModal(exercise = null) {
   } else {
     const exType = EXERCISE_TYPES.find(t => t.id === sel.value);
     currentRecordType = exType?.defaultRtype || 'time';
+    currentWeightType = 'bodyweight';
     document.getElementById('ex-duration').value = '';
     document.getElementById('ex-sets').value = '';
     document.getElementById('ex-reps').value = '';
@@ -290,6 +319,7 @@ function openExerciseModal(exercise = null) {
     document.getElementById('save-exercise').textContent = '追加';
   }
 
+  updateWeightTypeUI();
   updateRecordTypeUI();
   document.getElementById('exercise-modal').classList.remove('hidden');
 }
@@ -300,16 +330,30 @@ function updateRecordTypeUI() {
   document.getElementById('time-section').classList.toggle('hidden', currentRecordType !== 'time');
   document.getElementById('reps-section').classList.toggle('hidden', currentRecordType !== 'reps');
   document.getElementById('steps-section').classList.toggle('hidden', currentRecordType !== 'steps');
+  const isStrengthReps = currentRecordType === 'reps' && document.getElementById('ex-type').value === 'strength';
+  document.getElementById('strength-extra').classList.toggle('hidden', !isStrengthReps);
   updateCaloriePreview();
+}
+
+function updateWeightTypeUI() {
+  document.querySelectorAll('[data-wtype]').forEach(b =>
+    b.classList.toggle('active', b.dataset.wtype === currentWeightType));
+}
+
+function populateStrengthSubtype(selectedId = null) {
+  const sel = document.getElementById('ex-subtype');
+  sel.innerHTML = STRENGTH_EXERCISES.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  if (selectedId) sel.value = selectedId;
 }
 
 function updateCaloriePreview() {
   const type = document.getElementById('ex-type').value;
   if (currentRecordType === 'reps') {
-    const sets  = parseInt(document.getElementById('ex-sets').value);
-    const reps  = parseInt(document.getElementById('ex-reps').value);
+    const sets    = parseInt(document.getElementById('ex-sets').value);
+    const reps    = parseInt(document.getElementById('ex-reps').value);
+    const subtype = document.getElementById('ex-subtype').value;
     document.getElementById('calorie-preview').textContent =
-      sets ? `${calcCalories(type, null, sets, reps)} kcal` : '-- kcal';
+      sets ? `${calcCalories(type, null, sets, reps, null, subtype, currentWeightType)} kcal` : '-- kcal';
   } else if (currentRecordType === 'steps') {
     const steps = parseInt(document.getElementById('ex-steps').value);
     document.getElementById('calorie-preview').textContent =
@@ -337,10 +381,16 @@ async function saveExercise() {
     const sets = parseInt(document.getElementById('ex-sets').value);
     const reps = parseInt(document.getElementById('ex-reps').value) || null;
     if (!sets || sets < 1) { alert('セット数を入力してください'); return; }
+    const isStrength = type === 'strength';
+    const subtype = isStrength ? document.getElementById('ex-subtype').value : null;
+    const wtype   = isStrength ? currentWeightType : null;
+    const subEx   = STRENGTH_EXERCISES.find(s => s.id === subtype);
     payload = {
-      date: dateStr, exercise_type: type, exercise_name: info?.name || type,
+      date: dateStr, exercise_type: type,
+      exercise_name: isStrength && subEx ? subEx.name : info?.name || type,
       duration_min: null, sets, reps, steps: null,
-      calories: calcCalories(type, null, sets, reps),
+      exercise_subtype: subtype, weight_type: wtype,
+      calories: calcCalories(type, null, sets, reps, null, subtype, wtype),
       notes: notes || null, record_type: 'reps',
     };
   } else if (currentRecordType === 'steps') {
@@ -668,6 +718,13 @@ function setupEventListeners() {
   document.getElementById('ex-sets').addEventListener('input', updateCaloriePreview);
   document.getElementById('ex-reps').addEventListener('input', updateCaloriePreview);
   document.getElementById('ex-steps').addEventListener('input', updateCaloriePreview);
+  document.getElementById('ex-subtype').addEventListener('change', updateCaloriePreview);
+  document.querySelectorAll('[data-wtype]').forEach(btn =>
+    btn.addEventListener('click', () => {
+      currentWeightType = btn.dataset.wtype;
+      updateWeightTypeUI();
+      updateCaloriePreview();
+    }));
   document.querySelectorAll('[data-rtype]').forEach(btn =>
     btn.addEventListener('click', () => {
       currentRecordType = btn.dataset.rtype;
